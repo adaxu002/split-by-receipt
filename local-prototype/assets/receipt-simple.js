@@ -22,7 +22,7 @@ globalThis.ReceiptSimple = function (m, receipt, people, actions) {
         const selected=item.assignedPeopleIds||[], shared=selected.length===0;
         const net=(Number(item.price)-Number(item.discount||0))*(item.priceBasis==='line'?1:(item.quantity||1));
         return m.jsxs('article',{className:'receipt-item',children:[
-          m.jsxs('div',{className:'receipt-item-name',children:[m.jsx('span',{children:item.name}),m.jsx('strong',{children:money(net)})]}),
+          m.jsxs('div',{className:'receipt-item-name',children:[m.jsxs('div',{className:'receipt-product',children:[m.jsx('span',{className:'receipt-product-title',children:item.name}),item.originalName&&m.jsx('small',{className:'receipt-product-original',children:item.originalName})]}),m.jsx('strong',{children:money(net)})]}),
           m.jsxs('div',{className:'receipt-people',children:[...people.map(person=>button(person.name,()=>actions.toggle(item.id,person.id),{'aria-pressed':selected.includes(person.id),key:person.id})),button('Clear',()=>actions.clear(item.id),{className:'receipt-clear'})]}),
           shared&&m.jsx('small',{children:'Shared equally by everyone'})
         ]},item.id);

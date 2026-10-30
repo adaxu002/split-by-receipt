@@ -61,6 +61,9 @@
         netDiff: (p.id === receipt.payerId ? calculatedTotal - share : -share)/100};
     });
   }
-  root.ReceiptMath = {allocate, split, validate};
+  function localDate(now = new Date()) {
+    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  }
+  root.ReceiptMath = {allocate, split, validate, localDate};
   if (typeof module !== 'undefined') module.exports = root.ReceiptMath;
 })(globalThis);

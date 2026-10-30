@@ -43,6 +43,11 @@ replace('children:"Group / Participants"', 'children:"Participants"')
 text = text.replace('m.jsx("span",{className:"text-neutral-700",children:"/"}),', '')
 replace('children:"Total Override"', 'children:"Receipt total"')
 replace('children:"Live share projection"', 'children:"Split after discounts"')
+replace('date:E.date||new Date().toISOString().split("T")[0]', 'date:E.date||""')
+replace('[W,rt]=L.useState(y?y.date:(l==null?void 0:l.date)||new Date().toISOString().split("T")[0])',
+        '[W,rt]=L.useState(y?y.date:((l==null?void 0:l.date)??""))')
+text = text.replace('new Date().toISOString().split("T")[0]', 'globalThis.ReceiptMath.localDate()')
+replace('type:"date",value:W', 'type:"date",title:"Receipt date. Leave blank if unknown.",value:W')
 bundle.write_text(text, encoding='utf-8')
 index = ROOT / 'index.html'
 html = index.read_text(encoding='utf-8')

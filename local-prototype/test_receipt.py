@@ -18,6 +18,31 @@ BASE = {'store': 'Synthetic Grocery', 'date': '2026-10-29',
 
 
 class ReceiptTests(unittest.TestCase):
+    def test_missing_date_warning_not_duplicated(self):
+        data = copy.deepcopy(BASE)
+        data.update(date='', warnings=['Date not visible on receipt'])
+        result = normalize(data)
+        self.assertEqual(result['date'], '')
+        self.assertEqual(sum('date' in w.lower() for w in result['warnings']), 1)
+
+    def test_impossible_calendar_date_not_accepted(self):
+        data = copy.deepcopy(BASE)
+        data['date'] = '2026-02-30'
+        self.assertEqual(normalize(data)['date'], '')
+
+    def test_clear_tax_markers_need_no_generic_warning(self):
+        data = copy.deepcopy(BASE)
+        for line in data['items']: line['taxable'] = True
+        self.assertFalse(any('Taxable labels' in w for w in normalize(data)['warnings']))
+
+    def test_whole_foods_transcribed_line_totals(self):
+        amounts = [699,199,399,499,799,299,99,120,298,349,91,299,316,77,250,169]
+        data = {'items': [{'name': f'Row {i+1}', 'originalPrice': v/100, 'finalPrice': v/100, 'taxable': i == 4} for i,v in enumerate(amounts)], 'tax': .71, 'total': 50.33}
+        result = normalize(data)
+        self.assertEqual(sum(cents(i['finalPrice']) for i in result['items']), 4962)
+        self.assertTrue(result['reconciliation']['balanced'])
+        self.assertEqual(len(result['items']), 16)
+
     def test_item_and_order_discounts(self):
         result = normalize(BASE)
         self.assertTrue(result['reconciliation']['balanced'])

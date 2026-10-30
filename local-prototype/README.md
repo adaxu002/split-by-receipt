@@ -9,7 +9,7 @@ If the app is already running, just open that URL. Ctrl+C in the server console 
 On another computer with Python 3.10+, run `python server.py` from this folder. No Python packages are required.
 
 Manual entry, JSON import, demo data, folders and splitting work without an API key.
-To enable real photo recognition, copy `.env.example` to `.env`, set `RECEIPT_PROVIDER=kimi`, enter your own `KIMI_API_KEY` locally, and restart the server. Never upload or commit `.env`. `KIMI_MODEL` defaults to `kimi-k2.5`, with thinking disabled and a 4096-token output cap. Each scan makes one request with no automatic retries. Charges depend on your Kimi account. `KIMI_BASE_URL` defaults to the China endpoint; international accounts use `https://api.moonshot.ai/v1`. Only these official endpoints are allowed; redirects are blocked. Gemini remains available with `RECEIPT_PROVIDER=gemini` and `GEMINI_API_KEY`.
+To enable real photo recognition, copy `.env.example` to `.env`, set `RECEIPT_PROVIDER=kimi`, enter your own `KIMI_API_KEY` locally, and restart the server. Never upload or commit `.env`. `KIMI_MODEL` defaults to `kimi-k2.6`, with thinking disabled and a 4096-token output cap. Each scan makes one request with no automatic retries. Charges depend on your Kimi account. `KIMI_BASE_URL` defaults to the China endpoint; international accounts use `https://api.moonshot.ai/v1`. Only these official endpoints are allowed; redirects are blocked. Gemini remains available with `RECEIPT_PROVIDER=gemini` and `GEMINI_API_KEY`.
 
 Receipt photos are sent to the selected AI provider only when scanning. The server does not save uploaded images. Saved folders and receipt records remain in this browser's local storage, separate from the deployed website. Clearing browser data removes them. The server binds only to this computer and does not serve private config or source files.
 
@@ -29,7 +29,7 @@ The extraction prompt is store-independent and covers common US supermarket rece
 
 `python -B -m unittest -v` checks normalization, invalid inputs, simulated model output, missing-key behavior and local HTTP isolation.
 `node test_math.cjs` checks quantities, item/order discounts, taxable items, rounding and accounting conservation.
-These synthetic fixtures do not measure real-photo recognition accuracy. Real API recognition still needs testing with a user-provided receipt and configured key. Mock tests do not verify account access or recognition accuracy.
+These synthetic fixtures do not measure real-photo recognition accuracy. One supplied Whole Foods receipt was tested with Kimi K2.6: all 16 line totals matched, subtotal $49.62, tax $0.71, total $50.33; only chicken was taxable. Missing date remains blank. This receipt has no separate discount, so real coupon recognition remains unverified. The regression tests include transcribed amounts; these are distinct from the real API test.
 
 `receipt.py` contains extraction and normalization. `server.py` contains the local server. `assets/receipt-math.js` contains the editable accounting source. `integrate.py` is the maintained, idempotent adapter for the original compiled React export; it fails if expected upstream patterns change. The original uncompiled React source was not available.
 

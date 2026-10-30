@@ -3,6 +3,7 @@ import base64
 import json
 import os
 import re
+from datetime import date as calendar_date
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError, URLError
@@ -75,11 +76,20 @@ def normalize(raw):
         warnings.append(f'Printed total ${total / 100:.2f}; calculated ${calculated / 100:.2f}. Difference ${difference / 100:+.2f}. Correct the items or charges before saving.')
     if values['discount']:
         warnings.append('Order discount is shared proportionally across all items. If the coupon applies only to certain items, move it to those item discounts.')
-    warnings.append('Check the Taxable labels. Tax is shared by discounted taxable item value; if none are marked, it is shared across all items. Multiple tax rates need manual review.')
+    if values['tax'] and any(line.get('taxable') not in (True, False) or line.get('taxable') is None for line in raw['items']):
+        warnings.append('Some tax markers are unreadable. Check the Taxable labels before splitting tax.')
+    if values['tax'] and not any(item['taxable'] for item in items):
+        warnings.append('Tax is printed but no taxable items are selected. Tax will be shared across all items; check the Taxable labels.')
     date = str(raw.get('date') or '')
-    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date):
+    try:
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date):
+            raise ValueError
+        calendar_date.fromisoformat(date)
+    except ValueError:
         date = ''
-        warnings.append('Receipt date was unreadable. Please check the date.')
+        if not any(re.search(r'\bdate\b|日期', warning, re.I) for warning in warnings):
+            warnings.append('Receipt date is missing or unreadable. Enter it if known; otherwise leave it blank.')
+    warnings = list(dict.fromkeys(warnings))
     return {'store': str(raw.get('store') or 'Receipt')[:200], 'date': date, 'type': 'grocery',
             'items': items, **{k: v / 100 for k, v in values.items()}, 'total': total / 100,
             'warnings': warnings, 'reconciliation': {'calculated': calculated / 100,
@@ -102,6 +112,12 @@ Gift cards, EBT/SNAP, card payments, cash tender, change and cashback are paymen
 total is the printed purchase grand total before tender/change/cashback, not just card payment amount.
 If total is unreadable return null for total. If tax cannot be determined use null for tax. Do not assume a tax rate.
 Use taxable true/false only from printed tax markers. If unclear use null and warn the user to check taxable labels.
+When the tax summary breaks a combined Tax/Fee heading into tax amounts, sum those tax amounts once.
+Multiple tax jurisdictions applied to the same taxable base do not imply an extra service fee.
+Do not warn merely because clear tax markers or a clear tax summary were used; warn only about unresolved uncertainty.
+Do not infer a date from the current date or a cropped fragment. Return an empty date when incomplete.
+Sold Items counts physical units, not purchase rows. Multi-buy and weighted lines remain one whole-line amount.
+Tare weight is informational and must not become a purchase or fee.
 Keep return amounts negative so the application can flag unsupported returns, rather than dropping them.
 Warn about unreadable lines, missing sections, unclear discount links, multiple receipts or non-USD currency.
 If not a receipt return items:[] and total:null. Output only the JSON object.'''
@@ -131,7 +147,7 @@ def extract(payload):
     key = os.environ.get(provider.upper() + '_API_KEY', '').strip()
     if not key:
         raise ReceiptError(f'Receipt scanning needs an API key. Set {provider.upper()}_API_KEY in .env and restart. Manual entry and demo data work without a key.')
-    model = os.environ.get(provider.upper() + '_MODEL', 'kimi-k2.5' if provider == 'kimi' else 'gemini-2.5-flash')
+    model = os.environ.get(provider.upper() + '_MODEL', 'kimi-k2.6' if provider == 'kimi' else 'gemini-2.5-flash')
     if not re.fullmatch(r'[a-zA-Z0-9._-]+', model):
         raise ReceiptError('Invalid model setting.')
     body = {'contents': [{'parts': [{'text': PROMPT}, {'inline_data': {'mime_type': mime, 'data': encoded}}]}],

@@ -18,6 +18,42 @@ BASE = {'store': 'Synthetic Grocery', 'date': '2026-10-29',
 
 
 class ReceiptTests(unittest.TestCase):
+    def test_unknown_and_malformed_tax_status_stay_unknown(self):
+        for status in [None, 'false', 'true', 0, 1, [], {}]:
+            data=copy.deepcopy(BASE)
+            data['items'][0]['taxable']=status
+            self.assertIsNone(normalize(data)['items'][0]['taxable'])
+
+    def test_discount_targets_are_explicit_and_bounded(self):
+        data=copy.deepcopy(BASE)
+        self.assertTrue(all(i['orderDiscountEligible'] is None for i in normalize(data)['items']))
+        data['discountTargets']=[1]
+        self.assertEqual([i['orderDiscountEligible'] for i in normalize(data)['items']], [False,True])
+        for targets in [[2],[-1],[True],[0,0],'all']:
+            data['discountTargets']=targets
+            self.assertTrue(all(i['orderDiscountEligible'] is None for i in normalize(data)['items']))
+
+    def test_tax_groups_preserve_overlapping_membership(self):
+        data=copy.deepcopy(BASE)
+        data.update(taxMode='groups',taxGroups=[{'amount':.2,'itemIndexes':[0]}, {'amount':.4,'itemIndexes':[0,1]}])
+        result=normalize(data)
+        self.assertEqual(result['taxMode'],'groups')
+        self.assertEqual(len(result['taxGroups']),2)
+
+    def test_invalid_tax_groups_require_review(self):
+        for groups in [[{'amount':.59,'itemIndexes':[0]}], [{'amount':.60,'itemIndexes':[2]}], [{'amount':.60,'itemIndexes':[0,0]}], None]:
+            data=copy.deepcopy(BASE)
+            data.update(taxMode='groups',taxGroups=groups)
+            result=normalize(data)
+            self.assertEqual(result['taxMode'],'review')
+            self.assertEqual(result['taxGroups'],[])
+
+    def test_no_tax_pool_inferred_from_product_or_store(self):
+        data=copy.deepcopy(BASE)
+        data['store']='Whole Foods'
+        data['items'][0]['name']='ROTI CKN PLN'
+        self.assertEqual(normalize(data)['taxMode'],'review')
+
     def test_missing_date_warning_not_duplicated(self):
         data = copy.deepcopy(BASE)
         data.update(date='', warnings=['Date not visible on receipt'])
@@ -55,12 +91,12 @@ class ReceiptTests(unittest.TestCase):
         self.assertEqual(normalize(data)['items'][0]['quantity'], 1)
 
     def test_free_item(self):
-        data = {'items': [{'name': 'BOGO free', 'originalPrice': 5, 'finalPrice': 0}], 'total': 0}
+        data = {'items': [{'name': 'BOGO free', 'originalPrice': 5, 'finalPrice': 0}], 'tax': 0, 'total': 0}
         self.assertEqual(normalize(data)['items'][0]['discount'], 5)
 
     def test_summary_savings_do_not_deduct_twice(self):
         data = {'items': [{'name': 'Member price', 'originalPrice': 7, 'finalPrice': 7}],
-                'savingsSummary': 3, 'total': 7}
+                'savingsSummary': 3, 'tax': 0, 'total': 7}
         self.assertTrue(normalize(data)['reconciliation']['balanced'])
 
     def test_mismatch_is_not_silently_adjusted(self):
@@ -73,6 +109,11 @@ class ReceiptTests(unittest.TestCase):
     def test_unknown_total_rejected(self):
         data = copy.deepcopy(BASE)
         data['total'] = None
+        with self.assertRaises(ReceiptError): normalize(data)
+
+    def test_missing_tax_not_invented_as_zero(self):
+        data=copy.deepcopy(BASE)
+        del data['tax']
         with self.assertRaises(ReceiptError): normalize(data)
 
     def test_nonfinite_rejected(self):

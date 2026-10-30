@@ -7,6 +7,11 @@ text = bundle.read_text(encoding='utf-8')
 
 def replace(old, new):
     global text
+    evolved = {'price:Number(Yt.originalPrice)||Number(Yt.finalPrice)||0,discount:fa,isTaxable:': 'priceBasis:"line",orderDiscountEligible:',
+               ']}),Ka&&m.jsxs("div",{className:"p-3.5': 'globalThis.ReceiptReview(m,Ya,',
+               'children:"Live share projection"': 'Resolve receipt details to calculate shares'}
+    if old in evolved and evolved[old] in text:
+        return
     if (new and new in text) or (not new and old not in text):
         return
     if text.count(old) != 1:
@@ -48,10 +53,39 @@ replace('[W,rt]=L.useState(y?y.date:(l==null?void 0:l.date)||new Date().toISOStr
         '[W,rt]=L.useState(y?y.date:((l==null?void 0:l.date)??""))')
 text = text.replace('new Date().toISOString().split("T")[0]', 'globalThis.ReceiptMath.localDate()')
 replace('type:"date",value:W', 'type:"date",title:"Receipt date. Leave blank if unknown.",value:W')
+replace('isTaxable:!!Yt.taxable,assignedPeopleIds:',
+        'isTaxable:Yt.taxable===true?true:Yt.taxable===false?false:null,taxAmount:Yt.taxAmount??null,priceBasis:"line",orderDiscountEligible:Yt.orderDiscountEligible??null,assignedPeopleIds:')
+replace('warnings:E.warnings||[]', 'warnings:E.warnings||[],taxMode:E.taxMode||"review",taxGroups:(E.taxGroups||[]).map(group=>({...group,itemIds:group.itemIndexes.map(index=>P[index].id)}))')
+replace('})):[]),[dt,ft]=L.useState', '})):[]),[taxMode,setTaxMode]=L.useState(y?.taxMode||l?.taxMode||"review"),[taxGroups,setTaxGroups]=L.useState(y?.taxGroups||l?.taxGroups||[]),[dt,ft]=L.useState')
+# Every save path carries the same accounting decisions used by the live preview.
+text = text.replace('type:et,status:"ready",items:$', 'type:et,taxMode,taxGroups,status:"ready",items:$')
+replace('[s,a.id,nt,W,ht,St,E,_,J,_n,et,$]', '[s,a.id,nt,W,ht,St,E,_,J,_n,et,$,taxMode,taxGroups]')
+replace('onClick:()=>me(z.id,!z.isTaxable)', 'onClick:()=>me(z.id,z.isTaxable===null||z.isTaxable===undefined?true:z.isTaxable===true?false:null)')
+replace('children:"Taxable"', 'children:z.isTaxable===true?"Taxable":z.isTaxable===false?"Tax exempt":"Tax unknown"')
+replace('globalThis.ReceiptMath.validate(Ya,b)&&m.jsx("p",{role:"alert"',
+        'globalThis.ReceiptReview(m,Ya,mode=>{setTaxMode(mode);if(mode!=="groups")setTaxGroups([]);if(mode!=="item")st(items=>items.map(item=>({...item,taxAmount:null})))},st),globalThis.ReceiptMath.validate(Ya,b)&&m.jsx("p",{role:"alert"')
+replace('children:"Split after discounts"', 'children:qo.length?"Split after discounts":"Resolve receipt details to calculate shares"')
+if 'function G5(a){return globalThis.ReceiptMath.settleFolder(a)}' not in text:
+    start = text.index('function G5(a){')
+    end = text.index('const Mc=', start)
+    text = text[:start] + 'function G5(a){return globalThis.ReceiptMath.settleFolder(a)}' + text[end:]
+replace('{balances:Z,debts:nt}=G5(a)', '{balances:Z,debts:nt,issue:folderIssue}=G5(a)')
+replace('rt=()=>{var J,T;if(a.receipts.length===0)', 'rt=()=>{var J,T;if(folderIssue)return folderIssue;if(a.receipts.length===0)')
+replace('children:p&&m.jsxs(Be.div,{initial:{opacity:0,height:0}', 'children:p&&!folderIssue&&m.jsxs(Be.div,{initial:{opacity:0,height:0}')
+replace('children:"Settlement strategy"', 'children:folderIssue?"Receipt review required":"Settlement strategy"')
+replace('title:"Quantity",children:', 'title:z.priceBasis==="line"?"Whole receipt line. Quantity or weight is included in its name.":"Quantity",children:')
+replace('value:z.quantity||1,onChange:', 'disabled:z.priceBasis==="line",value:z.quantity||1,onChange:')
+replace('children:"Qty"', 'children:z.priceBasis==="line"?"Line":"Qty"')
+replace('title:"Discount deducted per unit"', 'title:z.priceBasis==="line"?"Discount deducted from this line":"Discount deducted per unit"')
+replace('title:"Net unit price (Final)"', 'title:z.priceBasis==="line"?"Net line amount":"Net unit price (Final)"')
+replace('Lt=Number(E.total)||$+st+dt+ft', 'Lt=E.total==null?$+st+dt+ft-Number(E.discount||0):Number(E.total)')
 bundle.write_text(text, encoding='utf-8')
 index = ROOT / 'index.html'
 html = index.read_text(encoding='utf-8')
 if 'receipt-math.js' not in html:
     html = html.replace('<head>', '<head>\n    <script src="/assets/receipt-math.js"></script>')
+index.write_text(html, encoding='utf-8')
+if 'receipt-review.js' not in html:
+    html = html.replace('<head>', '<head>\n    <script src="/assets/receipt-review.js"></script>')
 index.write_text(html, encoding='utf-8')
 print('Frontend integrated.')

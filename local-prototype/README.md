@@ -32,7 +32,7 @@ The extraction prompt is store-independent and covers common US supermarket rece
 
 `python -B -m unittest -v` checks normalization, invalid inputs, simulated model output, missing-key behavior and local HTTP isolation.
 `node test_math.cjs` checks unknown states, independent and overlapping tax groups, removed group members, coupon tax-base mismatches, explicit item taxes, restricted coupons, line versus unit amounts, large-number rounding and accounting conservation. It includes synthetic cases with arbitrary item names and reordered lines so the rules cannot depend on one receipt.
-These synthetic fixtures do not measure real-photo recognition accuracy. One supplied Whole Foods receipt was tested with Kimi K2.6: all 16 line totals matched, subtotal $49.62, tax $0.71, total $50.33; only chicken was taxable. Missing date remains blank. This receipt has no separate discount, so real coupon recognition remains unverified. The regression tests include transcribed amounts; these are distinct from the real API test.
+These synthetic fixtures do not measure real-photo recognition accuracy. One supplied Whole Foods receipt was tested with Kimi K2.6: all 16 line totals matched, subtotal $49.62, tax $0.71, total $50.33; only chicken was taxable. Missing dates use the browser's current local date in the displayed and saved receipt; the raw extraction keeps absence distinct. This receipt has no separate discount, so real coupon recognition remains unverified. The regression tests include transcribed amounts; these are distinct from the real API test.
 
 `receipt.py` contains extraction and normalization. `server.py` contains the local server. `assets/receipt-math.js` contains the editable accounting engine, and `assets/receipt-review.js` contains the editable review controls. `integrate.py` is the maintained, idempotent adapter for the original compiled React export; it fails if expected upstream patterns change. The original uncompiled React source was not available.
 
@@ -43,3 +43,9 @@ This prototype does not write the course journal or record the student's video.
 
 
 Kimi official vision API examples: https://huggingface.co/moonshotai/Kimi-K2.5#chat-completion-with-visual-content
+
+## Simple split view
+
+Single-file uploads start scanning immediately. The default view shows each participant's share and payment direction first, followed by read-only line amounts and participant buttons. New quick receipts keep the default three people and equal sharing. Clear removes explicit assignments; unassigned items retain the documented equal-sharing fallback. Tax is included in the split and shown last in the totals. Edit details opens the existing complete editor, including participant names and membership; returning preserves edits. Recognition notes are only visible in the editor. Unresolved accounting still requires correction before saving.
+
+`assets/receipt-simple.js` and `assets/receipt-simple.css` maintain this presentation separately from the compiled export.

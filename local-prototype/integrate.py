@@ -7,6 +7,8 @@ text = bundle.read_text(encoding='utf-8')
 
 def replace(old, new):
     global text
+    if 'globalThis.ReceiptSimple(m,Ya,b,' in text and (old.startswith('date:E.date||') or old.startswith('[W,rt]=') or old == 'type:"date",value:W'):
+        return
     evolved = {'price:Number(Yt.originalPrice)||Number(Yt.finalPrice)||0,discount:fa,isTaxable:': 'priceBasis:"line",orderDiscountEligible:',
                ']}),Ka&&m.jsxs("div",{className:"p-3.5': 'globalThis.ReceiptReview(m,Ya,',
                'children:"Live share projection"': 'Resolve receipt details to calculate shares'}
@@ -80,6 +82,24 @@ replace('title:"Discount deducted per unit"', 'title:z.priceBasis==="line"?"Disc
 replace('title:"Net unit price (Final)"', 'title:z.priceBasis==="line"?"Net line amount":"Net unit price (Final)"')
 replace('Lt=Number(E.total)||$+st+dt+ft', 'Lt=E.total==null?$+st+dt+ft-Number(E.discount||0):Number(E.total)')
 bundle.write_text(text, encoding='utf-8')
+# Keep the detailed editor available, but make the default view a simple split.
+replace('nt(F=>[...F,..._])},pt=A=>', 'if(_.length===1){Mt(_[0]);return}nt(F=>[...F,..._])},pt=A=>')
+if 'globalThis.ReceiptSimple(m,Ya,b,' not in text:
+    start = text.index('Q5=')
+    view = text.index('return m.jsxs("div",{className:"max-w-4xl', start)
+    content = text.index('children:[', view) + len('children:[')
+    modal = text.index(',m.jsx(Oo,{children:w&&', content)
+    old = text[content:modal]
+    old = old.replace('onClick:c,className:', 'onClick:()=>setEditing(false),className:', 1).replace('"Discard"', '"Back to split"', 1)
+    simple = 'globalThis.ReceiptSimple(m,Ya,b,{edit:()=>setEditing(true),back:c,payer:Ut,toggle:an,clear:Zo,clearAll:()=>st(items=>items.map(item=>({...item,assignedPeopleIds:[]}))),save:()=>{if(p){K(f[0]?.id||"");Q("");M(true)}else Fo()}})'
+    text = text[:content] + '!editing&&' + simple + ',editing&&m.jsxs("div",{className:"space-y-8",children:[' + old + ']})' + text[modal:]
+    hook = text.index('[w,M]=L.useState(!1)', start)
+    text = text[:hook] + '[editing,setEditing]=L.useState(false),' + text[hook:]
+# Preserve receipt dates; use the user's local calendar date when absent.
+text = text.replace('date:E.date||""', 'date:E.date||globalThis.ReceiptMath.localDate()')
+text = text.replace('[W,rt]=L.useState(y?y.date:((l==null?void 0:l.date)??""))', '[W,rt]=L.useState((y?y.date:l?.date)||globalThis.ReceiptMath.localDate())')
+text = text.replace('Receipt date. Leave blank if unknown.', 'Receipt date')
+bundle.write_text(text, encoding='utf-8')
 index = ROOT / 'index.html'
 html = index.read_text(encoding='utf-8')
 if 'receipt-math.js' not in html:
@@ -89,3 +109,6 @@ if 'receipt-review.js' not in html:
     html = html.replace('<head>', '<head>\n    <script src="/assets/receipt-review.js"></script>')
 index.write_text(html, encoding='utf-8')
 print('Frontend integrated.')
+if 'receipt-simple.js' not in html:
+    html = html.replace('<head>', '<head>\n    <script src="/assets/receipt-simple.js"></script>\n    <link rel="stylesheet" href="/assets/receipt-simple.css">')
+index.write_text(html, encoding='utf-8')
